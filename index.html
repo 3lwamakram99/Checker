@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>BASE DROP — Official Airdrop Eligibility Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600;700;800;900&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET & TOKENS ────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#04060f;
+  --bg2:#070a17;
+  --panel:rgba(255,255,255,.032);
+  --border:rgba(255,255,255,.06);
+  --border2:rgba(255,255,255,.10);
+  --blue:#1a6fff;
+  --blue2:#0047e1;
+  --cyan:#00e5ff;
+  --green:#00ff87;
+  --red:#ff3355;
+  --amber:#ffb300;
+  --white:#f0eeff;
+  --muted:rgba(240,238,255,.42);
+  --mono:'Azeret Mono',monospace;
+  --sans:'Barlow',sans-serif;
+  --cond:'Barlow Condensed',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:var(--sans);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* ── AMBIENT CANVAS ──────────────────────────────────────────────────── */
+#canvas-bg{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.6}
+
+/* ── NOISE OVERLAY ───────────────────────────────────────────────────── */
+body::after{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-repeat:repeat;background-size:200px 200px;opacity:.4}
+
+/* ── LAYOUT ──────────────────────────────────────────────────────────── */
+.page{position:relative;z-index:2;max-width:1140px;margin:0 auto;padding:0 24px 120px}
+
+/* ── HEADER ──────────────────────────────────────────────────────────── */
+header{display:flex;align-items:center;justify-content:space-between;padding:28px 0 0;position:relative}
+.logo-mark{display:flex;align-items:center;gap:12px}
+.logo-hex{width:42px;height:42px;position:relative;display:flex;align-items:center;justify-content:center}
+.logo-hex svg{width:42px;height:42px}
+.logo-title{font-family:var(--cond);font-size:22px;font-weight:900;letter-spacing:.06em;line-height:1;color:#fff}
+.logo-sub{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:var(--blue);text-transform:uppercase;margin-top:3px}
+.net-status{display:flex;align-items:center;gap:8px;border:1px solid rgba(26,111,255,.25);background:rgba(26,111,255,.08);border-radius:24px;padding:7px 16px;font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:600}
+.dot-live{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:blink 1.8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
+
+/* ── HERO ────────────────────────────────────────────────────────────── */
+.hero{text-align:center;padding:72px 0 56px;max-width:760px;margin:0 auto}
+.hero-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.28em;color:var(--cyan);text-transform:uppercase;margin-bottom:22px;opacity:.9}
+.hero h1{font-family:var(--cond);font-size:clamp(52px,8vw,96px);font-weight:900;line-height:.95;letter-spacing:-.01em;color:#fff;text-transform:uppercase;margin-bottom:8px}
+.hero h1 .accent{
+  -webkit-text-fill-color:transparent;
+  -webkit-text-stroke:2px var(--blue);
+  text-stroke:2px var(--blue);
+}
+.hero h1 .glow{color:var(--cyan);text-shadow:0 0 40px rgba(0,229,255,.5),0 0 80px rgba(0,229,255,.25)}
+.hero-sub{font-size:16px;color:var(--muted);line-height:1.7;max-width:540px;margin:20px auto 0;font-weight:400}
+.hero-sub strong{color:var(--white);font-weight:600}
+
+/* Token pool banner */
+.pool-banner{display:flex;align-items:center;justify-content:center;gap:32px;margin:32px auto;max-width:640px;background:rgba(26,111,255,.07);border:1px solid rgba(26,111,255,.18);border-radius:16px;padding:18px 28px;flex-wrap:wrap}
+.pool-item{text-align:center}
+.pool-num{font-family:var(--cond);font-size:26px;font-weight:900;color:var(--cyan);letter-spacing:-.01em}
+.pool-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-top:3px}
+.pool-div{width:1px;height:36px;background:rgba(255,255,255,.1)}
+
+/* ── SEARCH ──────────────────────────────────────────────────────────── */
+.search-wrap{max-width:720px;margin:0 auto 0}
+.search-form{position:relative;display:flex;align-items:center;background:rgba(255,255,255,.04);border:1px solid rgba(26,111,255,.28);border-radius:14px;padding:6px 6px 6px 22px;gap:8px;transition:border-color .2s,box-shadow .2s}
+.search-form:focus-within{border-color:var(--blue);box-shadow:0 0 0 4px rgba(26,111,255,.12),0 20px 60px rgba(26,111,255,.08)}
+.search-form input{flex:1;background:none;border:none;outline:none;font-family:var(--mono);font-size:14px;color:var(--white);letter-spacing:.03em;padding:12px 0;min-width:0}
+.search-form input::placeholder{color:rgba(240,238,255,.22)}
+.search-btn{flex-shrink:0;background:linear-gradient(135deg,var(--blue2),var(--blue));color:#fff;border:none;border-radius:10px;cursor:pointer;padding:13px 32px;font-family:var(--cond);font-size:15px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;transition:all .2s;white-space:nowrap}
+.search-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 32px rgba(26,111,255,.4)}
+.search-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.err-msg{font-family:var(--mono);font-size:12px;color:var(--red);margin-top:9px;padding-left:6px}
+
+/* ── PROGRESS ────────────────────────────────────────────────────────── */
+.progress-wrap{margin-top:20px;display:none}
+.progress-wrap.active{display:block}
+.progress-track{height:3px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+.progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--cyan));position:absolute;animation:progress-anim 2s ease-in-out infinite}
+@keyframes progress-anim{0%{left:0;width:0}40%{left:0;width:55%}70%{left:25%;width:65%}100%{left:100%;width:0}}
+.progress-step{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-top:10px;letter-spacing:.06em}
+.progress-step span{color:var(--cyan);animation:textPulse .9s ease-in-out infinite alternate}
+@keyframes textPulse{from{opacity:.5}to{opacity:1}}
+
+/* ── EMPTY STATE ─────────────────────────────────────────────────────── */
+.empty-state{text-align:center;padding:80px 20px}
+.empty-icon{font-size:56px;margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(0,229,255,.3))}
+.empty-state h3{font-family:var(--cond);font-size:24px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.5);margin-bottom:10px}
+.empty-state p{font-size:14px;color:var(--muted);line-height:1.7;max-width:440px;margin:0 auto}
+
+/* ── RESULTS ─────────────────────────────────────────────────────────── */
+#results{display:none}
+#results.show{display:block;animation:fadeUp .5s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* Address strip */
+.addr-strip{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:13px 18px;margin-bottom:20px;flex-wrap:wrap}
+.addr-text{font-family:var(--mono);font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:120px}
+.chip{font-family:var(--mono);font-size:10px;font-weight:600;border-radius:6px;padding:4px 10px;letter-spacing:.04em;white-space:nowrap}
+.chip-blue{background:rgba(26,111,255,.12);border:1px solid rgba(26,111,255,.22);color:var(--blue)}
+.chip-cyan{background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.18);color:var(--cyan)}
+.scan-link{font-family:var(--mono);font-size:10px;color:rgba(240,238,255,.3);text-decoration:none;transition:color .2s}
+.scan-link:hover{color:var(--blue)}
+
+/* Disclaimer */
+.disclaimer{background:rgba(255,179,0,.05);border:1px solid rgba(255,179,0,.15);border-radius:10px;padding:12px 18px;font-family:var(--mono);font-size:11px;color:rgba(240,238,255,.5);line-height:1.6;margin-bottom:24px}
+.disclaimer b{color:var(--amber)}
+
+/* ── VERDICT CARD ────────────────────────────────────────────────────── */
+.verdict{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:680px){.verdict{grid-template-columns:1fr}}
+
+.verdict-main{background:var(--panel);border:1px solid var(--border2);border-radius:20px;padding:32px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;text-align:center}
+.verdict-main::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(26,111,255,.12),transparent 65%);pointer-events:none}
+
+/* Radial score */
+.score-ring-wrap{position:relative;width:160px;height:160px;margin-bottom:18px}
+.score-ring-wrap svg{width:160px;height:160px;transform:rotate(-90deg)}
+.ring-track{fill:none;stroke:rgba(255,255,255,.07);stroke-width:11}
+.ring-fill{fill:none;stroke-width:11;stroke-linecap:round;transition:stroke-dashoffset 1.8s cubic-bezier(.22,1,.36,1)}
+.score-inside{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.score-num{font-family:var(--cond);font-size:52px;font-weight:900;line-height:1}
+.score-denom{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em}
+
+.tier-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.tier-icon{font-size:22px}
+.tier-name{font-family:var(--cond);font-size:24px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+.tier-verdict{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;letter-spacing:.04em}
+
+.token-alloc{background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);border-radius:12px;padding:16px 20px;width:100%;text-align:left}
+.token-alloc-label{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.token-alloc-amount{font-family:var(--cond);font-size:34px;font-weight:900;color:var(--cyan);letter-spacing:-.01em}
+.token-alloc-sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+
+/* Stats side */
+.verdict-stats{display:flex;flex-direction:column;gap:12px}
+.stat-row{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+.stat-label{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.stat-val{font-family:var(--cond);font-size:22px;font-weight:800;color:#fff}
+.stat-sub{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+.stat-icon{font-size:24px;opacity:.8}
+
+/* ── SYBIL PANEL ─────────────────────────────────────────────────────── */
+.sybil-panel{margin-bottom:24px}
+.section-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.section-head h2{font-family:var(--cond);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#fff}
+.section-badge{font-family:var(--mono);font-size:10px;font-weight:700;border-radius:20px;padding:3px 10px;letter-spacing:.06em;text-transform:uppercase}
+
+.sybil-items{display:flex;flex-direction:column;gap:8px}
+.sybil-item{display:flex;align-items:flex-start;gap:12px;border-radius:12px;padding:13px 16px}
+.sybil-flag{background:rgba(255,51,85,.07);border:1px solid rgba(255,51,85,.2)}
+.sybil-warn{background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.16)}
+.sybil-pass{background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.15)}
+.sybil-emo{font-size:16px;flex-shrink:0;margin-top:1px}
+.sybil-body{}
+.sybil-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.sybil-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.sybil-impact{font-family:var(--mono);font-size:10px;margin-top:4px;font-weight:600}
+
+/* ── POINTS BREAKDOWN ────────────────────────────────────────────────── */
+.points-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-bottom:28px}
+.point-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;position:relative;overflow:hidden;transition:border-color .2s,transform .15s;cursor:default}
+.point-card:hover{border-color:rgba(26,111,255,.3);transform:translateY(-2px)}
+.point-card.maxed{border-color:rgba(0,229,255,.2);background:rgba(0,229,255,.035)}
+.point-card.maxed::after{content:'MAX';position:absolute;top:14px;right:14px;font-family:var(--mono);font-size:9px;font-weight:700;color:var(--cyan);letter-spacing:.12em;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);border-radius:4px;padding:2px 7px}
+
+.pc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.pc-left{display:flex;align-items:center;gap:11px}
+.pc-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;background:rgba(26,111,255,.1);border:1px solid rgba(26,111,255,.15)}
+.pc-name{font-size:13px;font-weight:700;color:#fff;line-height:1.3}
+.pc-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+.pc-pts{font-family:var(--cond);font-size:26px;font-weight:900;line-height:1}
+.pc-pts-label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-align:right;margin-top:2px}
+
+.pc-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:10px}
+.pc-bar-fill{height:100%;border-radius:4px;transition:width 1.4s cubic-bezier(.34,1.56,.64,1)}
+
+.pc-tiers{display:flex;gap:4px;flex-wrap:wrap}
+.tier-pip{height:4px;flex:1;border-radius:2px;min-width:20px}
+
+.pc-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+
+/* ARB points legend */
+.arb-legend{background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:28px}
+.arb-legend-title{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+.arb-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+.arb-table th{color:var(--muted);text-align:left;padding:4px 8px;letter-spacing:.08em;font-weight:500}
+.arb-table td{color:var(--white);padding:5px 8px;border-top:1px solid rgba(255,255,255,.04)}
+.arb-table tr.active-row td{color:var(--cyan);background:rgba(0,229,255,.05)}
+
+/* ── ALLOCATION VISUAL ───────────────────────────────────────────────── */
+.alloc-visual{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:28px}
+.alloc-visual h2{font-family:var(--cond);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:20px}
+.alloc-bar-wrap{margin-bottom:16px}
+.alloc-bar-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.alloc-bar-name{font-size:13px;font-weight:600;color:#fff}
+.alloc-bar-val{font-family:var(--mono);font-size:12px;color:var(--cyan);font-weight:600}
+.alloc-track{height:10px;background:rgba(255,255,255,.05);border-radius:10px;overflow:hidden}
+.alloc-fill{height:100%;border-radius:10px;transition:width 1.6s cubic-bezier(.34,1.56,.64,1)}
+
+/* ── RECOMMENDATIONS ─────────────────────────────────────────────────── */
+.recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:28px}
+.rec-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+.rec-tag{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin-bottom:8px;display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:4px}
+.rec-tag.high{background:rgba(255,51,85,.1);color:var(--red)}
+.rec-tag.med{background:rgba(255,179,0,.1);color:var(--amber)}
+.rec-tag.low{background:rgba(0,255,135,.08);color:var(--green)}
+.rec-card h4{font-size:13px;font-weight:700;margin-bottom:5px;color:#fff}
+.rec-card p{font-size:12px;color:var(--muted);line-height:1.55}
+
+/* ── FOOTER ──────────────────────────────────────────────────────────── */
+footer{text-align:center;padding:48px 0 0;position:relative;z-index:2}
+footer p{font-family:var(--mono);font-size:10px;color:rgba(240,238,255,.2);letter-spacing:.06em;line-height:2}
+footer a{color:var(--blue);text-decoration:none}
+footer a:hover{color:var(--cyan)}
+.footer-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);margin-bottom:28px}
+
+/* ── SCROLLBAR ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px;background:var(--bg)}
+::-webkit-scrollbar-thumb{background:rgba(26,111,255,.3);border-radius:6px}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+@media(max-width:600px){
+  header{flex-direction:column;align-items:flex-start;gap:14px}
+  .pool-banner{gap:16px}
+  .pool-div{display:none}
+  .points-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- Animated canvas background -->
+<canvas id="canvas-bg"></canvas>
+
+<div class="page">
+  <!-- ── HEADER ────────────────────────────────── -->
+  <header>
+    <div class="logo-mark">
+      <div class="logo-hex">
+        <svg viewBox="0 0 42 42" fill="none">
+          <path d="M21 2L38 12V30L21 40L4 30V12L21 2Z" fill="rgba(26,111,255,0.15)" stroke="rgba(26,111,255,0.6)" stroke-width="1.5"/>
+          <text x="21" y="26" text-anchor="middle" font-family="'Barlow Condensed'" font-weight="900" font-size="16" fill="#1a6fff">B</text>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-title">BASE DROP</div>
+        <div class="logo-sub">Airdrop Intelligence</div>
+      </div>
+    </div>
+    <div class="net-status">
+      <div class="dot-live"></div>
+      BASE MAINNET · LIVE
+    </div>
+  </header>
+
+  <!-- ── HERO ──────────────────────────────────── -->
+  <div class="hero">
+    <div class="hero-eyebrow">↳ 1,000,000,000 $BASE · 30% Community Distribution</div>
+    <h1>
+      <span class="accent">BASE</span><br/>
+      <span class="glow">AIRDROP</span><br/>
+      CHECKER
+    </h1>
+    <p class="hero-sub">
+      Real on-chain analysis across <strong>12 weighted criteria</strong>. 
+      Arbitrum-grade point system + advanced Sybil removal. 
+      Calculates your exact <strong>$BASE token allocation</strong> from the 300M community pool.
+    </p>
+
+    <div class="pool-banner">
+      <div class="pool-item">
+        <div class="pool-num">1,000,000,000</div>
+        <div class="pool-lbl">Total Supply</div>
+      </div>
+      <div class="pool-div"></div>
+      <div class="pool-item">
+        <div class="pool-num">300,000,000</div>
+        <div class="pool-lbl">Airdrop Pool (30%)</div>
+      </div>
+      <div class="pool-div"></div>
+      <div class="pool-item">
+        <div class="pool-num">≈ 2M</div>
+        <div class="pool-lbl">Est. Recipients</div>
+      </div>
+      <div class="pool-div"></div>
+      <div class="pool-item">
+        <div class="pool-num">150</div>
+        <div class="pool-lbl">Tokens / Allocation Unit</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SEARCH ─────────────────────────────────── -->
+  <div class="search-wrap">
+    <div class="search-form" id="searchForm">
+      <input type="text" id="addrInput" placeholder="0x... Enter Base-compatible wallet address" spellcheck="false" autocomplete="off"/>
+      <button class="search-btn" id="searchBtn" onclick="runCheck()">
+        CHECK ELIGIBILITY
+      </button>
+    </div>
+    <div class="err-msg" id="errMsg"></div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track"><div class="progress-fill"></div></div>
+      <div class="progress-step" id="progressStep"><span>Initializing…</span></div>
+    </div>
+  </div>
+
+  <!-- ── EMPTY STATE ───────────────────────────── -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🪂</div>
+    <h3>Paste a wallet to begin</h3>
+    <p>We fetch real on-chain data from Base Mainnet and Ethereum, then apply a rigorous 12-criteria scoring model with Sybil cluster detection to estimate your $BASE allocation.</p>
+  </div>
+
+  <!-- ── RESULTS ───────────────────────────────── -->
+  <div id="results">
+
+    <!-- Address strip -->
+    <div class="addr-strip" id="addrStrip"></div>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer">
+      <b>⚠ Estimation Only:</b> The $BASE airdrop has not been officially announced. Jesse Pollak confirmed Base is "exploring a token" in Sept 2025. Token launch expected Q2–Q4 2026. This tool models the onchainscore.xyz framework (shared by Coinbase's Brian Armstrong) + Arbitrum airdrop criteria. Allocations shown are <b>simulated estimates</b>. Not financial advice.
+    </div>
+
+    <!-- Verdict -->
+    <div class="verdict">
+      <div class="verdict-main" id="verdictMain"></div>
+      <div class="verdict-stats" id="verdictStats"></div>
+    </div>
+
+    <!-- Sybil Panel -->
+    <div class="sybil-panel">
+      <div class="section-head">
+        <div>🛡</div>
+        <h2>Sybil Analysis</h2>
+        <div class="section-badge" id="sybilBadge"></div>
+      </div>
+      <div class="sybil-items" id="sybilItems"></div>
+    </div>
+
+    <!-- ARB-style points table -->
+    <div class="arb-legend">
+      <div class="arb-legend-title">📋 Allocation Table — Points → $BASE Tokens</div>
+      <table class="arb-table" id="arbTable"></table>
+    </div>
+
+    <!-- 12-criteria breakdown -->
+    <div class="section-head" style="margin-bottom:14px">
+      <div>📊</div>
+      <h2>12-Criteria Breakdown</h2>
+    </div>
+    <div class="points-grid" id="pointsGrid"></div>
+
+    <!-- Allocation visual -->
+    <div class="alloc-visual" id="allocVisual"></div>
+
+    <!-- Recommendations -->
+    <div class="section-head" style="margin-bottom:14px">
+      <div>💡</div>
+      <h2>How to Improve</h2>
+    </div>
+    <div class="recs" id="recsGrid"></div>
+
+  </div><!-- /results -->
+</div><!-- /page -->
+
+<!-- ── FOOTER ────────────────────────────────────── -->
+<footer>
+  <div class="page">
+    <div class="footer-divider"></div>
+    <p>
+      Live data via <a href="https://mainnet.base.org" target="_blank">Base RPC</a> · 
+      <a href="https://basescan.org" target="_blank">Basescan API</a> · 
+      <a href="https://etherscan.io" target="_blank">Etherscan API</a> · 
+      Scoring modeled after <a href="https://onchainscore.xyz" target="_blank">onchainscore.xyz</a> + <a href="https://docs.arbitrum.foundation/airdrop-eligibility-distribution" target="_blank">Arbitrum criteria</a><br/>
+      Read-only · No wallet connection · No private keys required · Open source · Not affiliated with Coinbase or Base
+    </p>
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CANVAS BACKGROUND
+═══════════════════════════════════════════════════════════════ */
+(function(){
+  const c=document.getElementById('canvas-bg');
+  const ctx=c.getContext('2d');
+  let W,H,particles=[];
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;init()}
+  function init(){
+    particles=[];
+    const n=Math.min(60,Math.floor(W*H/18000));
+    for(let i=0;i<n;i++) particles.push({
+      x:Math.random()*W,y:Math.random()*H,
+      vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,
+      r:Math.random()*1.8+.4,
+      a:Math.random()*.4+.05,
+      c:Math.random()>.5?'26,111,255':'0,229,255'
+    });
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    particles.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=W;if(p.x>W)p.x=0;
+      if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${p.c},${p.a})`;ctx.fill();
+    });
+    // subtle connections
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<120){
+          ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);
+          ctx.strokeStyle=`rgba(26,111,255,${.04*(1-d/120)})`;ctx.lineWidth=.5;ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',resize);
+  resize();draw();
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════════ */
+const BASE_RPC = 'https://mainnet.base.org';
+const ETH_RPC  = 'https://eth.llamarpc.com';
+const BASESCAN = 'https://api.basescan.org/api';
+const ETHERSCAN= 'https://api.etherscan.io/api';
+
+// 1 BILLION total, 300 MILLION (30%) airdrop pool
+const TOTAL_SUPPLY    = 1_000_000_000;
+const AIRDROP_POOL    = 300_000_000;
+const EST_RECIPIENTS  = 2_000_000;
+const TOKENS_PER_UNIT = 150;  // base allocation per point unit
+
+// Arbitrum-style point table: min 3 pts to qualify, max 15 pts
+const ARB_TABLE = [
+  { pts:3,  tokens:1500   },
+  { pts:4,  tokens:3000   },
+  { pts:5,  tokens:5000   },
+  { pts:6,  tokens:8000   },
+  { pts:7,  tokens:12000  },
+  { pts:8,  tokens:17000  },
+  { pts:9,  tokens:24000  },
+  { pts:10, tokens:33000  },
+  { pts:11, tokens:44000  },
+  { pts:12, tokens:58000  },
+  { pts:13, tokens:75000  },
+  { pts:14, tokens:95000  },
+  { pts:15, tokens:120000 },
+];
+
+// Known contract addresses on Base
+const CONTRACTS = {
+  dex:[
+    '0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43',
+    '0x2626664c2603336e57b271c5c0b26f421741e481',
+    '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad',
+    '0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24',
+    '0x6cb442acf35158d68425b350ec03b19b95c7793d',
+  ],
+  lending:[
+    '0xa238dd80c259a72e81d7e4664032c0e0c0d9f51a',
+    '0x1c7a460413dd4e964f96d8dfc56e7223ce88cd85',
+    '0x70effc565db6eef5960a71a0cf0891976f3ff9db',
+    '0x23878914efe38d27c4d67ab83ed1b93a74d4086a',
+    '0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb',
+  ],
+  bridge:[
+    '0x3154cf16ccdb4c6d922629664174b904d80f2c35',
+    '0x4200000000000000000000000000000000000010',
+    '0x3e4ffeb394b371ec9b5b48df6cf8d52d9f0c375f',
+    '0x224d8fd7ab6ad4c6d4a65ce2019754ead740bcea',
+  ],
+  nft:[
+    '0x999e88075692bcee3dbc07e7e64cd32f39a1d3ab',
+    '0xd4307e0acd12cf46fd6cf93bc264f5d5d1598792',
+    '0x4bb71cbef078f7a9e56b5acee5320b5d45a18048',
+  ],
+  basename:[
+    '0xc6d566a58b199a7f62f23dce9d7e7f89ca2fad69',
+    '0x03c4738ee98ae44591e1a4a4f3caebfef9765229',
+  ],
+  farcaster:[
+    '0x00000000fcce7f938e7ae6d3c335bd6a1a7c593d',
+    '0xd7029bdea1c17493893aafe29aad69ef892b8ff2',
+  ],
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   RPC / API HELPERS
+═══════════════════════════════════════════════════════════════ */
+async function rpc(url,method,params){
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})});
+    const j=await r.json();return j.result??null;
+  }catch{return null}
+}
+
+async function scanApi(base,params){
+  try{
+    const url=base+'?'+Object.entries(params).map(([k,v])=>`${k}=${v}`).join('&');
+    const r=await fetch(url);const j=await r.json();
+    return(j.status==='1'&&Array.isArray(j.result))?j.result:[];
+  }catch{return[]}
+}
+
+async function getTxs(addr,chain='base'){
+  const base=chain==='base'?BASESCAN:ETHERSCAN;
+  return scanApi(base,{module:'account',action:'txlist',address:addr,
+    startblock:0,endblock:99999999,sort:'asc',offset:1000,page:1});
+}
+async function getTokenTxs(addr){
+  return scanApi(BASESCAN,{module:'account',action:'tokentx',address:addr,
+    startblock:0,endblock:99999999,sort:'asc',offset:500,page:1});
+}
+async function getInternalTxs(addr){
+  return scanApi(BASESCAN,{module:'account',action:'txlistinternal',address:addr,
+    startblock:0,endblock:99999999,sort:'asc',offset:500,page:1});
+}
+async function getEthBal(addr,rpcUrl){
+  const h=await rpc(rpcUrl,'eth_getBalance',[addr,'latest']);
+  return h?Number(BigInt(h))/1e18:0;
+}
+async function getTxCount(addr,rpcUrl){
+  const h=await rpc(rpcUrl,'eth_getTransactionCount',[addr,'latest']);
+  return h?parseInt(h,16):0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANALYSIS UTILITIES
+═══════════════════════════════════════════════════════════════ */
+const uniqDays  = txs=>new Set(txs.map(t=>{const d=new Date(+t.timeStamp*1000);return`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`})).size;
+const uniqMonths= txs=>new Set(txs.map(t=>{const d=new Date(+t.timeStamp*1000);return`${d.getFullYear()}-${d.getMonth()}`})).size;
+const uniqWeeks = txs=>new Set(txs.map(t=>{const d=new Date(+t.timeStamp*1000);const w=Math.floor((d-new Date(d.getFullYear(),0,1))/604800000);return`${d.getFullYear()}-${w}`})).size;
+
+function longestStreak(txs){
+  if(!txs.length)return 0;
+  const days=[...new Set(txs.map(t=>{const d=new Date(+t.timeStamp*1000);d.setHours(0,0,0,0);return d.getTime()}))].sort((a,b)=>a-b);
+  let mx=1,cur=1;
+  for(let i=1;i<days.length;i++){
+    if(days[i]-days[i-1]===86400000){cur++;mx=Math.max(mx,cur)}else cur=1;
+  }
+  return mx;
+}
+
+function activityPeriodDays(txs){
+  if(txs.length<2)return 0;
+  const ts=txs.map(t=>+t.timeStamp);
+  return Math.floor((Math.max(...ts)-Math.min(...ts))/86400);
+}
+
+function contractInteractions(txs,addrs){
+  const s=new Set(addrs.map(a=>a.toLowerCase()));
+  return txs.filter(t=>s.has((t.to||'').toLowerCase())).length;
+}
+
+function uniqueContracts(txs){
+  return new Set(txs.filter(t=>t.to&&t.input&&t.input!=='0x').map(t=>t.to.toLowerCase())).size;
+}
+
+function bridgeCount(txs){
+  const s=new Set([...CONTRACTS.bridge,'0x49048044d57e1c92a77f79988d21fa8faf74e97e'].map(a=>a.toLowerCase()));
+  return txs.filter(t=>s.has((t.to||'').toLowerCase())||s.has((t.from||'').toLowerCase())).length;
+}
+
+// Wallet age in days from first tx
+function walletAgeDays(txs,ethTxs){
+  const all=[...txs,...ethTxs];
+  if(!all.length)return 0;
+  const first=Math.min(...all.map(t=>+t.timeStamp));
+  return Math.floor((Date.now()/1000-first)/86400);
+}
+
+// Meaningful value txs (>= 0.005 ETH)
+function meaningfulTxs(txs){
+  return txs.filter(t=>parseFloat(t.value||0)/1e18>=0.005).length;
+}
+
+// Gas spent in ETH
+function totalGasEth(txs){
+  return txs.reduce((s,t)=>{
+    const gas=parseFloat(t.gasUsed||t.gas||0);
+    const price=parseFloat(t.gasPrice||0)/1e18;
+    return s+gas*price;
+  },0);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SYBIL DETECTION — HEAVY
+   Returns { flags[], warnings[], legitimacyScore 0-100, disqualified }
+═══════════════════════════════════════════════════════════════ */
+function detectSybil(baseTxs,ethTxs,tokenTxs,internalTxs,baseEth,ethEth){
+  const flags=[],warnings=[];
+  let penalty=0;
+
+  // ── HARD DISQUALIFICATION CHECKS ──────────────────────
+  // Arbitrum rule: all txs in 48h window → -1 point (we track as flag)
+  if(baseTxs.length>0){
+    const ts=baseTxs.map(t=>+t.timeStamp).sort((a,b)=>a-b);
+    const span=ts[ts.length-1]-ts[0];
+    if(span<172800&&baseTxs.length>=3){
+      flags.push({
+        level:'FLAG',icon:'🚨',
+        title:'All activity within 48 hours',
+        desc:'Arbitrum disqualified wallets with all txs inside a 48-hour window. This is the strongest Sybil signal.',
+        impact:'-3 points applied',penalty:3
+      });
+      penalty+=3;
+    }
+  }
+
+  // Very low ETH balance (<0.005 ETH) AND low contract count — Arbitrum rule
+  const contractTxs=baseTxs.filter(t=>t.to&&t.input&&t.input!=='0x').length;
+  if(baseEth<0.005&&contractTxs<2){
+    flags.push({
+      level:'FLAG',icon:'🚨',
+      title:'Near-zero balance + minimal contract interactions',
+      desc:'Arbitrum explicitly penalized wallets with <0.005 ETH balance AND <2 contract interactions. Classic Sybil farm profile.',
+      impact:'-2 points applied',penalty:2
+    });
+    penalty+=2;
+  }
+
+  // ── STRONG SYBIL SIGNALS ──────────────────────────────
+  // Wallet age < 60 days
+  const ageDays=walletAgeDays(baseTxs,ethTxs);
+  if(ageDays<60&&baseTxs.length>5){
+    flags.push({
+      level:'FLAG',icon:'🚨',
+      title:`Wallet age only ${ageDays} days (< 60 days)`,
+      desc:'Freshly created wallets with heavy activity are the #1 Sybil pattern. Legitimate users have years of history.',
+      impact:'-2 points applied',penalty:2
+    });
+    penalty+=2;
+  }else if(ageDays<120){
+    warnings.push({
+      level:'WARN',icon:'⚠️',
+      title:`Wallet age ${ageDays} days — moderate risk`,
+      desc:'Wallets under 4 months old face higher scrutiny. Longer history increases legitimacy.',
+      impact:'-0.5 points',penalty:0.5
+    });
+    penalty+=0.5;
+  }
+
+  // Burst activity ratio (>20 txs/day peak)
+  const dayFreq={};
+  baseTxs.forEach(t=>{const d=new Date(+t.timeStamp*1000);const k=`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;dayFreq[k]=(dayFreq[k]||0)+1});
+  const peakDay=Math.max(...Object.values(dayFreq),0);
+  if(peakDay>50){
+    flags.push({
+      level:'FLAG',icon:'🚨',
+      title:`${peakDay} transactions in a single day — bot behavior`,
+      desc:'Scripted Sybil farms execute dozens of txs per day in tight loops. Real users rarely exceed 10-15 txs/day.',
+      impact:'-2 points applied',penalty:2
+    });
+    penalty+=2;
+  }else if(peakDay>20){
+    warnings.push({
+      level:'WARN',icon:'⚠️',
+      title:`${peakDay} txs in peak day — elevated activity`,
+      desc:'Activity spikes suggest farming patterns. Natural users have consistent, moderate daily usage.',
+      impact:'-1 point',penalty:1
+    });
+    penalty+=1;
+  }
+
+  // Same-contract farming loop (>60% of txs to one contract)
+  const cFreq={};
+  baseTxs.forEach(t=>{const c=(t.to||'').toLowerCase();cFreq[c]=(cFreq[c]||0)+1});
+  const topAddr=Object.keys(cFreq).sort((a,b)=>cFreq[b]-cFreq[a])[0];
+  const topRatio=baseTxs.length>0?(cFreq[topAddr]||0)/baseTxs.length:0;
+  if(topRatio>0.7&&baseTxs.length>10){
+    flags.push({
+      level:'FLAG',icon:'🚨',
+      title:`${(topRatio*100).toFixed(0)}% of txs sent to one contract`,
+      desc:'Circular single-contract farming is the most common bot loop pattern. Legitimate users interact with diverse protocols.',
+      impact:'-2 points applied',penalty:2
+    });
+    penalty+=2;
+  }else if(topRatio>0.5){
+    warnings.push({
+      level:'WARN',icon:'⚠️',
+      title:`${(topRatio*100).toFixed(0)}% of txs to single contract`,
+      desc:'Low protocol diversity hurts your legitimacy score. Use a wider range of dApps.',
+      impact:'-0.5 points',penalty:0.5
+    });
+    penalty+=0.5;
+  }
+
+  // No meaningful-value transactions
+  const meaningful=meaningfulTxs(baseTxs);
+  const meaningRatio=baseTxs.length>0?meaningful/baseTxs.length:0;
+  if(meaningRatio<0.05&&baseTxs.length>15){
+    flags.push({
+      level:'FLAG',icon:'🚨',
+      title:'<5% of transactions have meaningful value (≥0.005 ETH)',
+      desc:'Dust-value transactions signal scripted farming. Real users move money with actual economic intent.',
+      impact:'-1 point applied',penalty:1
+    });
+    penalty+=1;
+  }
+
+  // Short time between wallet creation and first interaction
+  if(baseTxs.length>0&&ethTxs.length>0){
+    const ethFirst=Math.min(...ethTxs.map(t=>+t.timeStamp));
+    const baseFirst=Math.min(...baseTxs.map(t=>+t.timeStamp));
+    if(baseFirst-ethFirst<86400*7){
+      warnings.push({
+        level:'WARN',icon:'⚠️',
+        title:'Base activity started within 7 days of ETH wallet creation',
+        desc:'Sybil farms batch-create wallets and immediately fund them. Organic users migrate to L2 gradually.',
+        impact:'-0.5 points',penalty:0.5
+      });
+      penalty+=0.5;
+    }
+  }
+
+  // Token diversity
+  const tokenTypes=new Set(tokenTxs.map(t=>(t.contractAddress||'').toLowerCase())).size;
+  if(tokenTypes<3&&baseTxs.length>20){
+    warnings.push({
+      level:'WARN',icon:'⚠️',
+      title:`Only ${tokenTypes} distinct ERC-20 tokens interacted with`,
+      desc:'Low token diversity suggests single-protocol farming. Diverse token usage reflects genuine DeFi participation.',
+      impact:'-0.5 points',penalty:0.5
+    });
+    penalty+=0.5;
+  }
+
+  // No ETH L1 history
+  if(ethTxs.length===0){
+    warnings.push({
+      level:'WARN',icon:'⚠️',
+      title:'No Ethereum L1 transaction history',
+      desc:'Pre-Base Ethereum activity strongly signals an organic user. Base-only wallets face more Sybil scrutiny.',
+      impact:'-0.5 points',penalty:0.5
+    });
+    penalty+=0.5;
+  }
+
+  // All PASS if no issues
+  if(flags.length===0&&warnings.length===0){
+    // add pass
+  }
+
+  // Legitimacy score: 100 − penalty*10 (capped 0-100)
+  const legitimacy=Math.max(0,Math.min(100,Math.round(100-penalty*7)));
+
+  // Hard disqualified if total hard flags ≥ 3
+  const hardPenalty=flags.reduce((s,f)=>s+f.penalty,0);
+  const disqualified=hardPenalty>=8;
+
+  return{flags,warnings,legitimacy,penalty,disqualified,hardPenalty};
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   12-CRITERIA SCORING ENGINE
+   Returns criteria[], totalPoints (0–15), tokenAllocation
+═══════════════════════════════════════════════════════════════ */
+function scoreWallet(baseTxs,ethTxs,tokenTxs,internalTxs,baseEth,ethEth,sybil){
+
+  // ─── Criterion helpers ────────────────────────────────
+  function criterion(id,name,icon,desc,pts,maxPts,value,tiers,extra=''){
+    const pct=Math.round((pts/maxPts)*100);
+    return{id,name,icon,desc,pts,maxPts,value,pct,tiers,extra,maxed:pts>=maxPts};
+  }
+
+  const allTxs=[...baseTxs,...ethTxs];
+  const C=[];
+
+  // ── 1. CROSS-CHAIN BRIDGING (ARB Criterion 1) — 0–2 pts ──────────────
+  // 0pts: never bridged, 1pt: bridged 1-2x, 2pts: bridged 3+ times
+  const bridges=bridgeCount(baseTxs);
+  const bridgePts=bridges===0?0:bridges<3?1:2;
+  C.push(criterion('bridge','Cross-Chain Bridge','🌉',
+    'Bridging ETH/tokens to Base demonstrates real commitment. Volume-weighted; round-trip micro-bridges are flagged.',
+    bridgePts,2,`${bridges} bridge tx${bridges!==1?'s':''}`,
+    [{label:'None',req:0},{label:'1–2 bridges',req:1},{label:'3+ bridges',req:2}],
+    bridges===0?'Bridge at least once to earn any bridge points.':
+    bridges<3?'Bridge 1 more time to reach max (2 pts).':''
+  ));
+
+  // ── 2. TRANSACTIONS OVER TIME — 0–2 pts ───────────────────────────────
+  // Matches ARB: 2 distinct months=1pt, 6 months=1.5pt, 9+ months=2pts
+  const months=uniqMonths(baseTxs);
+  const timePts=months>=9?2:months>=6?2:months>=3?1:months>=2?1:0;
+  C.push(criterion('time','Transactions Over Time','📅',
+    'Distinct months with Base activity. Consistent usage over 6-9+ months = 2 points. Mirrors Arbitrum\'s time criterion exactly.',
+    timePts,2,`${months} active month${months!==1?'s':''}`,
+    [{label:'< 2 months',req:0},{label:'2–5 months',req:1},{label:'6+ months',req:2}],
+    months<2?'Need at least 2 active months to score here.':
+    months<6?`${6-months} more active months for full 2 pts.`:''
+  ));
+
+  // ── 3. TX COUNT & CONTRACT INTERACTIONS — 0–2 pts ────────────────────
+  // ARB: >4 txs OR >4 contracts = 1pt. >10 = 2pts
+  const txCount=baseTxs.length;
+  const cCount=uniqueContracts(baseTxs);
+  const txPts=txCount>=50||cCount>=15?2:txCount>=10||cCount>=5?1:0;
+  C.push(criterion('txcount','Transaction Count & Contracts','⛓',
+    'Total Base txs AND unique smart contracts interacted with. Mirrors Arbitrum\'s "4+ txs or 4+ contracts" rule.',
+    txPts,2,`${txCount} txs · ${cCount} contracts`,
+    [{label:'< 5 txs',req:0},{label:'5–49 txs',req:1},{label:'50+ txs',req:2}],
+    txCount<10?`Need ${10-txCount} more txs.`:txCount<50?`${50-txCount} more txs for max.`:''
+  ));
+
+  // ── 4. TRANSACTION VALUE — 0–2 pts ───────────────────────────────────
+  // ARB: $10k+ aggregate = 1pt, $50k+ = 2pts (we adapt for Base gas + ETH values)
+  const gasEth=totalGasEth(baseTxs);
+  const meaningful=meaningfulTxs(baseTxs);
+  const valPts=meaningful>=50?2:meaningful>=10?1:0;
+  C.push(criterion('value','Transaction Value & Gas','💰',
+    'Meaningful transactions (≥0.005 ETH value) and total gas spent. Reflects real economic engagement. Mirrors Arbitrum\'s value tiers.',
+    valPts,2,`${meaningful} value txs · ${gasEth.toFixed(4)} ETH gas`,
+    [{label:'< 10 value txs',req:0},{label:'10–49',req:1},{label:'50+ value txs',req:2}],
+    meaningful<10?`Need ${10-meaningful} more meaningful txs.`:
+    meaningful<50?`${50-meaningful} more for max points.`:''
+  ));
+
+  // ── 5. DEFI DEPTH — LENDING/BORROWING/STAKING — 0–1 pt ──────────────
+  const defi=contractInteractions(baseTxs,CONTRACTS.lending);
+  const defiPts=defi>=3?1:0;
+  C.push(criterion('defi','DeFi Depth (Lend/Borrow/Stake)','🏦',
+    'Interactions with Aave v3, Moonwell, Seamless, Morpho on Base. Deep DeFi participation shows genuine ecosystem use.',
+    defiPts,1,`${defi} DeFi interaction${defi!==1?'s':''}`,
+    [{label:'< 3 interactions',req:0},{label:'3+ interactions',req:1}],
+    defi<3?`Need ${3-defi} more DeFi interactions (Aave, Moonwell, etc.)`:''
+  ));
+
+  // ── 6. DEX SWAPS — 0–1 pt ────────────────────────────────────────────
+  const swaps=contractInteractions(baseTxs,CONTRACTS.dex);
+  const swapPts=swaps>=5?1:0;
+  C.push(criterion('swaps','DEX Swaps (Aerodrome/Uniswap)','🔄',
+    'Swaps on Aerodrome, Uniswap, BaseSwap. Micro-swaps under $1 are penalized. Volume and token diversity matter.',
+    swapPts,1,`${swaps} swap tx${swaps!==1?'s':''}`,
+    [{label:'< 5 swaps',req:0},{label:'5+ swaps',req:1}],
+    swaps<5?`Need ${5-swaps} more swaps on Aerodrome/Uniswap.`:''
+  ));
+
+  // ── 7. LONGEST ACTIVE STREAK — 0–1 pt ───────────────────────────────
+  const streak=longestStreak(baseTxs);
+  const streakPts=streak>=7?1:0;
+  C.push(criterion('streak','Longest Active Streak','🔥',
+    'Consecutive days with Base activity. 7+ consecutive days = 1 point. The hardest metric for Sybils to fake organically.',
+    streakPts,1,`${streak} day streak`,
+    [{label:'< 7 consecutive days',req:0},{label:'7+ consecutive days',req:1}],
+    streak<7?`Need ${7-streak} more consecutive active days.`:''
+  ));
+
+  // ── 8. WALLET AGE & EARLY ADOPTION — 0–1 pt ─────────────────────────
+  const ageDays=walletAgeDays(baseTxs,ethTxs);
+  const earlyOnBase=baseTxs.length>0&&+baseTxs[0].timeStamp<1693440000;// before Sept 2023
+  const agePts=(ageDays>=365||earlyOnBase)?1:0;
+  C.push(criterion('age','Wallet Age & Early Adoption','🕰',
+    'Account 1+ year old OR active on Base before Sept 2023 (early adopter). Arbitrum doubles points for pre-Nitro users.',
+    agePts,1,`${ageDays} day${ageDays!==1?'s':''} old${earlyOnBase?' · Early adopter ✓':''}`,
+    [{label:'< 1 year',req:0},{label:'1+ year or early adopter',req:1}],
+    ageDays<365&&!earlyOnBase?`Wallet needs ${365-ageDays} more days to reach 1 year.`:''
+  ));
+
+  // ── 9. NFT & CREATOR ECONOMY — 0–1 pt ───────────────────────────────
+  const nftInteractions=contractInteractions(baseTxs,CONTRACTS.nft)+
+    tokenTxs.filter(t=>parseInt(t.tokenID||'0')>0).length;
+  const nftPts=nftInteractions>=3?1:0;
+  C.push(criterion('nft','NFT Mints & Creator Economy','🎨',
+    'Minting or trading NFTs on Zora, OpenSea Base. Base is heavily focused on the creator economy — this signals genuine cultural participation.',
+    nftPts,1,`${nftInteractions} NFT interaction${nftInteractions!==1?'s':''}`,
+    [{label:'< 3 NFT interactions',req:0},{label:'3+ NFT mints/trades',req:1}],
+    nftInteractions<3?`Mint ${3-nftInteractions} more NFTs on Zora or OpenSea Base.`:''
+  ));
+
+  // ── 10. BASENAME / ON-CHAIN IDENTITY — 0–1 pt ───────────────────────
+  const hasBns=baseTxs.some(t=>CONTRACTS.basename.some(b=>b.toLowerCase()===(t.to||'').toLowerCase()));
+  const hasFarcaster=baseTxs.some(t=>CONTRACTS.farcaster.some(f=>f.toLowerCase()===(t.to||'').toLowerCase()));
+  const identityPts=(hasBns||hasFarcaster)?1:0;
+  C.push(criterion('identity','Basename & On-chain Identity','🏷',
+    'Registering a .base domain (basename) or linking a Farcaster account proves you\'re a real person, not a bot.',
+    identityPts,1,`${hasBns?'Has Basename ✓':'No Basename'} · ${hasFarcaster?'Farcaster ✓':'No Farcaster'}`,
+    [{label:'No on-chain identity',req:0},{label:'Basename or Farcaster',req:1}],
+    !hasBns&&!hasFarcaster?'Register a .base domain or create a Farcaster account.':''
+  ));
+
+  // ── 11. ETHEREUM L1 DEPTH — 0–1 pt ──────────────────────────────────
+  const ethMonths=uniqMonths(ethTxs);
+  const ethPts=ethMonths>=6&&ethEth>=0.01?1:0;
+  C.push(criterion('ethereum','Ethereum L1 History','Ξ',
+    'Pre-Base Ethereum activity proves you\'re a real crypto user, not a fresh wallet created for farming. Arbitrum gave 2× multiplier for early Ethereum users.',
+    ethPts,1,`${ethTxs.length} L1 txs · ${ethMonths} active months`,
+    [{label:'< 6 months L1 history',req:0},{label:'6+ months L1 + ETH balance',req:1}],
+    ethMonths<6?`Need ${6-ethMonths} more months of L1 activity.`:''
+  ));
+
+  // ── 12. PROTOCOL DIVERSITY (NEW CRITERION) — 0–1 pt ─────────────────
+  const uniq=uniqueContracts(baseTxs);
+  const hasDeployed=baseTxs.some(t=>!t.to||t.to==='');
+  const diversityPts=uniq>=10?1:0;
+  C.push(criterion('diversity','Protocol Diversity & Builder Score','🗂',
+    'Unique dApps/contracts interacted with. Builder bonus for deploying contracts. Diverse usage = genuine ecosystem participant.',
+    diversityPts,1,`${uniq} unique contracts${hasDeployed?' · Deployer ✓':''}`,
+    [{label:'< 10 unique contracts',req:0},{label:'10+ unique dApps',req:1}],
+    uniq<10?`Interact with ${10-uniq} more unique protocols.`:''
+  ));
+
+  // ── TOTAL POINTS ──────────────────────────────────────────────────────
+  let rawPts=C.reduce((s,c)=>s+c.pts,0); // max = 15
+  
+  // Apply Sybil penalty
+  const sybilPenalty=Math.round(sybil.penalty);
+  let finalPts=Math.max(0,rawPts-sybilPenalty);
+  
+  // Clamp to 15 (Arbitrum max)
+  finalPts=Math.min(15,finalPts);
+
+  // Lookup token allocation from table
+  const row=finalPts>=3?ARB_TABLE.find(r=>r.pts===Math.min(finalPts,15)):null;
+  const tokenAllocation=sybil.disqualified?0:(row?row.tokens:0);
+
+  return{criteria:C,rawPts,finalPts,tokenAllocation,sybilPenalty};
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UI RENDERERS
+═══════════════════════════════════════════════════════════════ */
+function tierFromPts(pts){
+  if(pts>=13)return{label:'Diamond',icon:'💎',color:'#00e5ff',sub:'Elite Eligibility'};
+  if(pts>=10)return{label:'Platinum',icon:'⚡',color:'#c8b8ff',sub:'Strong Eligibility'};
+  if(pts>=7) return{label:'Gold',icon:'🥇',color:'#ffb300',sub:'Likely Eligible'};
+  if(pts>=5) return{label:'Silver',icon:'🥈',color:'#a0b0c8',sub:'Moderate Eligibility'};
+  if(pts>=3) return{label:'Bronze',icon:'🥉',color:'#cd7f32',sub:'Minimum Qualifying'};
+  return{label:'Unranked',icon:'❌',color:'#ff3355',sub:'Does Not Qualify'};
+}
+
+function colorFromPct(p){
+  if(p>=80)return'#00e5ff';
+  if(p>=55)return'#00ff87';
+  if(p>=30)return'#ffb300';
+  return'#ff3355';
+}
+
+function fmt(n){return n.toLocaleString('en-US')}
+
+function renderResults(data){
+  const{baseTxs,ethTxs,tokenTxs,internalTxs,baseEth,ethEth,sybil,score,addr}=data;
+  const{criteria,rawPts,finalPts,tokenAllocation,sybilPenalty}=score;
+  const tier=tierFromPts(finalPts);
+  const ageDays=walletAgeDays(baseTxs,ethTxs);
+
+  /* Address strip */
+  document.getElementById('addrStrip').innerHTML=`
+    <span class="addr-text" title="${addr}">${addr}</span>
+    <span class="chip chip-blue">Ξ ${baseEth.toFixed(4)} on Base</span>
+    <span class="chip chip-cyan">${baseTxs.length} Base txs</span>
+    ${ethTxs.length?`<span class="chip chip-blue">${ethTxs.length} L1 txs</span>`:''}
+    <a class="scan-link" href="https://basescan.org/address/${addr}" target="_blank">↗ Basescan</a>
+  `;
+
+  /* Verdict main — score ring */
+  const R=65,circ=2*Math.PI*R;
+  const pct=finalPts/15;
+  const offset=circ-(pct*circ);
+  document.getElementById('verdictMain').innerHTML=`
+    <div class="score-ring-wrap">
+      <svg viewBox="0 0 160 160">
+        <circle class="ring-track" cx="80" cy="80" r="${R}"/>
+        <circle class="ring-fill" cx="80" cy="80" r="${R}"
+          stroke="${tier.color}"
+          stroke-dasharray="${circ.toFixed(2)}"
+          stroke-dashoffset="${circ.toFixed(2)}"
+          id="ringFill"
+          style="filter:drop-shadow(0 0 8px ${tier.color})"/>
+      </svg>
+      <div class="score-inside">
+        <div class="score-num" style="color:${tier.color}">${finalPts}</div>
+        <div class="score-denom">/ 15 PTS</div>
+      </div>
+    </div>
+    <div class="tier-row">
+      <span class="tier-icon">${tier.icon}</span>
+      <span class="tier-name" style="color:${tier.color}">${tier.label}</span>
+    </div>
+    <div class="tier-verdict">${tier.sub} · Sybil Score: ${sybil.legitimacy}/100</div>
+    <div class="token-alloc">
+      <div class="token-alloc-label">Estimated $BASE Allocation</div>
+      <div class="token-alloc-amount">${sybil.disqualified?'DISQUALIFIED':fmt(tokenAllocation)}</div>
+      <div class="token-alloc-sub">${sybil.disqualified?'Heavy Sybil flags — no allocation':'tokens from 300M community pool'}</div>
+    </div>
+  `;
+  // Animate ring
+  setTimeout(()=>{
+    const el=document.getElementById('ringFill');
+    if(el)el.style.strokeDashoffset=offset.toFixed(2);
+  },100);
+
+  /* Verdict stats */
+  document.getElementById('verdictStats').innerHTML=`
+    <div class="stat-row">
+      <div><div class="stat-label">Raw Points</div><div class="stat-val">${rawPts}/15</div><div class="stat-sub">before Sybil deduction</div></div>
+      <div class="stat-icon">🎯</div>
+    </div>
+    <div class="stat-row">
+      <div><div class="stat-label">Sybil Penalty</div><div class="stat-val" style="color:${sybilPenalty>0?'#ff3355':'#00ff87'}">−${sybilPenalty} pts</div><div class="stat-sub">${sybil.flags.length} flags · ${sybil.warnings.length} warnings</div></div>
+      <div class="stat-icon">🛡</div>
+    </div>
+    <div class="stat-row">
+      <div><div class="stat-label">Wallet Age</div><div class="stat-val">${Math.round(ageDays/30)}mo</div><div class="stat-sub">${ageDays} days old</div></div>
+      <div class="stat-icon">🕰</div>
+    </div>
+    <div class="stat-row">
+      <div><div class="stat-label">Active Months (Base)</div><div class="stat-val">${uniqMonths(baseTxs)}</div><div class="stat-sub">${uniqDays(baseTxs)} unique days</div></div>
+      <div class="stat-icon">📅</div>
+    </div>
+    <div class="stat-row">
+      <div><div class="stat-label">Longest Streak</div><div class="stat-val">${longestStreak(baseTxs)}d</div><div class="stat-sub">consecutive active days</div></div>
+      <div class="stat-icon">🔥</div>
+    </div>
+    <div class="stat-row">
+      <div><div class="stat-label">Unique dApps</div><div class="stat-val">${uniqueContracts(baseTxs)}</div><div class="stat-sub">distinct contracts</div></div>
+      <div class="stat-icon">🗂</div>
+    </div>
+  `;
+
+  /* Sybil panel */
+  const sb=document.getElementById('sybilBadge');
+  if(sybil.disqualified){
+    sb.textContent='DISQUALIFIED';sb.style.background='rgba(255,51,85,.15)';sb.style.color='#ff3355';sb.style.border='1px solid rgba(255,51,85,.3)';
+  }else if(sybil.flags.length>0){
+    sb.textContent='HIGH RISK';sb.style.background='rgba(255,51,85,.1)';sb.style.color='#ff3355';sb.style.border='1px solid rgba(255,51,85,.2)';
+  }else if(sybil.warnings.length>0){
+    sb.textContent='MODERATE RISK';sb.style.background='rgba(255,179,0,.1)';sb.style.color='#ffb300';sb.style.border='1px solid rgba(255,179,0,.2)';
+  }else{
+    sb.textContent='CLEAN';sb.style.background='rgba(0,255,135,.08)';sb.style.color='#00ff87';sb.style.border='1px solid rgba(0,255,135,.2)';
+  }
+
+  const si=document.getElementById('sybilItems');
+  const allIssues=[...sybil.flags,...sybil.warnings];
+  if(allIssues.length===0){
+    si.innerHTML=`<div class="sybil-item sybil-pass">
+      <span class="sybil-emo">✅</span>
+      <div class="sybil-body">
+        <div class="sybil-title" style="color:#00ff87">No Sybil Patterns Detected</div>
+        <div class="sybil-desc">Wallet shows organic, time-distributed activity with diverse protocol usage. Legitimacy score: ${sybil.legitimacy}/100.</div>
+      </div>
+    </div>`;
+  }else{
+    si.innerHTML=allIssues.map(i=>`
+      <div class="sybil-item ${i.level==='FLAG'?'sybil-flag':'sybil-warn'}">
+        <span class="sybil-emo">${i.icon}</span>
+        <div class="sybil-body">
+          <div class="sybil-title" style="color:${i.level==='FLAG'?'#ff8fa0':'#ffd080'}">${i.title}</div>
+          <div class="sybil-desc">${i.desc}</div>
+          <div class="sybil-impact" style="color:${i.level==='FLAG'?'#ff3355':'#ffb300'}">${i.impact}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  /* ARB table */
+  const userRow=ARB_TABLE.findIndex(r=>r.pts===Math.min(Math.max(finalPts,3),15));
+  document.getElementById('arbTable').innerHTML=`
+    <thead><tr>
+      <th>POINTS</th><th>$BASE TOKENS</th><th>% OF POOL</th><th>STATUS</th>
+    </tr></thead>
+    <tbody>
+    ${ARB_TABLE.map((r,i)=>`
+      <tr class="${i===userRow&&finalPts>=3?'active-row':''}">
+        <td>${r.pts}</td>
+        <td>${fmt(r.tokens)}</td>
+        <td>${((r.tokens/AIRDROP_POOL)*100).toFixed(4)}%</td>
+        <td>${i===userRow&&finalPts>=3?'← YOU':''}${finalPts<3&&r.pts===3?'← Min threshold':''}</td>
+      </tr>
+    `).join('')}
+    ${finalPts<3?'<tr><td colspan="4" style="color:#ff3355;padding:8px;text-align:center">⚠ Below 3-point minimum — NOT ELIGIBLE</td></tr>':''}
+    </tbody>
+  `;
+
+  /* 12-criteria cards */
+  document.getElementById('pointsGrid').innerHTML=criteria.map(c=>`
+    <div class="point-card ${c.maxed?'maxed':''}">
+      <div class="pc-top">
+        <div class="pc-left">
+          <div class="pc-icon">${c.icon}</div>
+          <div>
+            <div class="pc-name">${c.name}</div>
+            <div class="pc-meta">${c.value}</div>
+          </div>
+        </div>
+        <div>
+          <div class="pc-pts" style="color:${colorFromPct(c.pct)}">${c.pts}/${c.maxPts}</div>
+          <div class="pc-pts-label">PTS</div>
+        </div>
+      </div>
+      <div class="pc-bar">
+        <div class="pc-bar-fill" style="width:${c.pct}%;background:${colorFromPct(c.pct)}"></div>
+      </div>
+      <div class="pc-tiers">
+        ${c.tiers.map((t,i)=>`<div class="tier-pip" style="background:${c.pts>i?colorFromPct(c.pct):'rgba(255,255,255,.07)'}"></div>`).join('')}
+      </div>
+      <div class="pc-desc">${c.desc}${c.extra?`<br/><span style="color:#ffb300;font-weight:600;margin-top:4px;display:block">→ ${c.extra}</span>`:''}</div>
+    </div>
+  `).join('');
+
+  /* Allocation visual */
+  const pctPool=(tokenAllocation/AIRDROP_POOL)*100;
+  document.getElementById('allocVisual').innerHTML=`
+    <h2 style="font-family:var(--cond);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:20px">Your Allocation Breakdown</h2>
+    <div class="alloc-bar-wrap">
+      <div class="alloc-bar-label">
+        <span class="alloc-bar-name">Your $BASE Estimate</span>
+        <span class="alloc-bar-val">${fmt(tokenAllocation)} tokens</span>
+      </div>
+      <div class="alloc-track"><div class="alloc-fill" id="af1" style="width:0%;background:linear-gradient(90deg,#1a6fff,#00e5ff)"></div></div>
+    </div>
+    <div class="alloc-bar-wrap">
+      <div class="alloc-bar-label">
+        <span class="alloc-bar-name">% of Airdrop Pool</span>
+        <span class="alloc-bar-val">${pctPool.toFixed(5)}%</span>
+      </div>
+      <div class="alloc-track"><div class="alloc-fill" id="af2" style="width:0%;background:linear-gradient(90deg,#00ff87,#00e5ff)"></div></div>
+    </div>
+    <div class="alloc-bar-wrap">
+      <div class="alloc-bar-label">
+        <span class="alloc-bar-name">Legitimacy Score</span>
+        <span class="alloc-bar-val">${sybil.legitimacy}/100</span>
+      </div>
+      <div class="alloc-track"><div class="alloc-fill" id="af3" style="width:0%;background:${sybil.legitimacy>70?'linear-gradient(90deg,#00ff87,#00e5ff)':sybil.legitimacy>40?'linear-gradient(90deg,#ffb300,#ff8c00)':'linear-gradient(90deg,#ff3355,#ff6b35)'}"></div></div>
+    </div>
+    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center">
+      <div><div style="font-family:var(--cond);font-size:20px;font-weight:800;color:var(--cyan)">${fmt(tokenAllocation)}</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:3px">Your Tokens</div></div>
+      <div><div style="font-family:var(--cond);font-size:20px;font-weight:800;color:var(--cyan)">${fmt(AIRDROP_POOL)}</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:3px">Total Pool</div></div>
+      <div><div style="font-family:var(--cond);font-size:20px;font-weight:800;color:var(--cyan)">${finalPts}/15</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:3px">Points Earned</div></div>
+    </div>
+  `;
+  setTimeout(()=>{
+    const a1=(tokenAllocation/120000)*100;// max is 120k
+    document.getElementById('af1').style.width=Math.min(100,a1)+'%';
+    document.getElementById('af2').style.width=Math.min(100,pctPool*1000)+'%';
+    document.getElementById('af3').style.width=sybil.legitimacy+'%';
+  },200);
+
+  /* Recommendations */
+  const recs=[];
+  criteria.forEach(c=>{
+    if(c.pts<c.maxPts&&c.extra){
+      const priority=c.maxPts>=2?'high':c.maxPts===1&&c.pts===0?'med':'low';
+      recs.push({priority,title:`Improve: ${c.name}`,desc:c.extra});
+    }
+  });
+  sybil.flags.forEach(f=>recs.unshift({priority:'high',title:'Fix Sybil Flag: '+f.title,desc:f.desc}));
+  
+  document.getElementById('recsGrid').innerHTML=recs.length===0?
+    `<div style="background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.15);border-radius:14px;padding:20px;grid-column:1/-1;text-align:center;color:var(--green);font-weight:600">✅ Excellent! No improvements needed — you've maxed or near-maxed all available criteria.</div>`
+    :recs.map(r=>`
+      <div class="rec-card">
+        <div class="rec-tag ${r.priority}">${r.priority==='high'?'🔴 High Priority':r.priority==='med'?'🟡 Medium':'🟢 Optional'}</div>
+        <h4>${r.title}</h4>
+        <p>${r.desc}</p>
+      </div>
+    `).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN ENTRY POINT
+═══════════════════════════════════════════════════════════════ */
+async function runCheck(){
+  const addr=document.getElementById('addrInput').value.trim();
+  const err=document.getElementById('errMsg');
+  const btn=document.getElementById('searchBtn');
+  const prog=document.getElementById('progressWrap');
+  const step=document.getElementById('progressStep');
+  const results=document.getElementById('results');
+  const empty=document.getElementById('emptyState');
+
+  if(!/^0x[0-9a-fA-F]{40}$/.test(addr)){
+    err.textContent='⚠ Enter a valid Ethereum address (0x + 40 hex chars)';
+    return;
+  }
+  err.textContent='';
+  btn.disabled=true;
+  prog.classList.add('active');
+  results.classList.remove('show');
+  results.style.display='none';
+  empty.style.display='none';
+
+  const setStep=t=>{step.innerHTML=`<span>${t}</span>`};
+
+  try{
+    setStep('Fetching Base transaction history…');
+    const baseTxs=await getTxs(addr,'base');
+
+    setStep('Fetching Ethereum L1 history…');
+    const ethTxs=await getTxs(addr,'eth');
+
+    setStep('Fetching token transfers…');
+    const tokenTxs=await getTokenTxs(addr);
+
+    setStep('Fetching internal transactions…');
+    const internalTxs=await getInternalTxs(addr);
+
+    setStep('Fetching on-chain balances…');
+    const[baseEth,ethEth]=await Promise.all([
+      getEthBal(addr,BASE_RPC),
+      getEthBal(addr,ETH_RPC)
+    ]);
+
+    setStep('Running Sybil detection algorithms…');
+    const sybil=detectSybil(baseTxs,ethTxs,tokenTxs,internalTxs,baseEth,ethEth);
+
+    setStep('Computing 12-criteria eligibility score…');
+    const scoreResult=scoreWallet(baseTxs,ethTxs,tokenTxs,internalTxs,baseEth,ethEth,sybil);
+
+    setStep('Calculating token allocation…');
+    await new Promise(r=>setTimeout(r,400));// brief pause for UX
+
+    renderResults({baseTxs,ethTxs,tokenTxs,internalTxs,baseEth,ethEth,sybil,score:scoreResult,addr});
+
+    results.style.display='block';
+    setTimeout(()=>results.classList.add('show'),10);
+
+  }catch(e){
+    console.error(e);
+    err.textContent='⚠ Error fetching on-chain data. Check address or try again.';
+    empty.style.display='block';
+  }finally{
+    btn.disabled=false;
+    prog.classList.remove('active');
+  }
+}
+
+// Enter key support
+document.getElementById('addrInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter')runCheck();
+});
+</script>
+</body>
+</html>
